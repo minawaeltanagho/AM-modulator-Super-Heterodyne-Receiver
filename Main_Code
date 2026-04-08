@@ -69,7 +69,7 @@ Fcarrier = cell(1,5);%Carrier frequency
 Carrier_Signal = cell(1,5);
 MonoSignal_upsampling = cell(1,5);
 Fsampling = 44100; %from audioread('');
-Factor = 10; %upsampling
+Factor = 60; %upsampling
 Fupsampling = Factor * Fsampling;
 Tupsampling = 1/Fupsampling;
 n = 0:200; %index
@@ -87,7 +87,8 @@ MonoSignal_upsampling{j} = interp(MonoSignal{j},Factor);
 Carrier_Signal{j} =  ...
                   cos(2*pi*Fcarrier{j}*n*Tupsampling);
               
-Modulated_signal{j} = MonoSignal_upsampling{j} .* Carrier_Signal{j};
+Modulated_signal{j} = ...
+          MonoSignal_upsampling{j}(1:length(n)) .* Carrier_Signal{j}';
     
 figure()
 %plotting Message Signal in time domain:
@@ -112,5 +113,3 @@ ylabel(sprintf('%s modulated Signal',StereoSignals{j}));
 title(sprintf('%s modulated Signal - Time domain',StereoSignals{j}));
 
 end
-
-
