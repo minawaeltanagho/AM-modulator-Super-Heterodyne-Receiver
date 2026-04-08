@@ -1,0 +1,116 @@
+%% Mina Wael Tanagho Fahmy 91240804
+clear all;
+clc;
+close all;
+
+%% Signals Inputs all in a single cell:
+StereoSignals = {'Short-BBCArabic2.wav',...
+    'Short-FM9090.wav','Short-QuranPalestine.wav',...
+    'Short-RussianVoice.wav','Short-SkyNewsArabia.wav'};
+
+%% (1ST Phase) Generating Signals Spectrums by a loop:
+
+%cells for all variables.
+StereoSignal = cell(1,5);
+StereoSignal_padded = cell(1,5);
+Length = cell(1,5);
+maxLength = 740544; %max length.
+Fsample = cell(1,5);
+MonoSignal = cell(1,5);
+MonoSignal_Time = cell(1,5);
+MonoSignal_Spectrum = cell(1,5);
+MonoSignal_Frequency = cell(1,5);
+
+%for loop for all 5 inputs.
+for i = 1:5
+%getting the data of audios.
+[StereoSignal{i},Fsample{i}] = audioread(StereoSignals{i});
+Length{i} = length(StereoSignal{i});
+
+%padding with zeros to make them all the same as max size L = 740544.
+StereoSignal_padded{i} = [StereoSignal{i};...
+                         zeros(maxLength-Length{i},2)];
+
+%converting 2-channel signal into 1-channel signal
+%(adding col_2 into col_1)
+MonoSignal{i} = StereoSignal_padded{i}(:,1)...
+                + StereoSignal_padded{i}(:,2);
+
+%getting the signal spectrum,
+%using fftshift to have the baseband clearly.
+MonoSignal_Spectrum{i} = fftshift(fft(MonoSignal{i}));
+
+%Time axis,(Multiplied by Tsample = 1/Fsample).
+MonoSignal_Time{i}=(0:(maxLength-1))/Fsample{i};
+
+%Frequency axis,(applying nyquist).
+MonoSignal_Frequency{i}= ...
+    ((-maxLength/2):(maxLength/2)-1)*(Fsample{i}/maxLength);
+
+figure()
+%plotting in time domain:
+subplot(1,2,1)
+plot(MonoSignal_Time{i},MonoSignal{i});
+xlabel('Time (Sec)');
+ylabel(sprintf('%s Mono Signal',StereoSignals{i}));
+title(sprintf('%s Mono Signal - Time domain',StereoSignals{i}));
+
+%plotting in real frequency domain:
+subplot(1,2,2)
+plot(MonoSignal_Frequency{i},abs(MonoSignal_Spectrum{i}));
+xlabel('Frequency (Hz)');
+ylabel(sprintf('%s Mono Signal',StereoSignals{i}));
+title(sprintf('%s Mono Signal - Frequncy domain',StereoSignals{i}));
+end
+
+%% (2ND Phase) The AM Modulation:
+
+Fcarrier = cell(1,5);%Carrier frequency
+Carrier_Signal = cell(1,5);
+MonoSignal_upsampling = cell(1,5);
+Fsampling = 44100; %from audioread('');
+Factor = 10; %upsampling
+Fupsampling = Factor * Fsampling;
+Tupsampling = 1/Fupsampling;
+n = 0:200; %index
+Modulated_signal = cell(1,5);
+
+%generating carrier:
+for j = 1:5
+    
+%starting from 0 not 1,
+%by using the given equation,
+Fcarrier{j} = 100000 + (j-1)*30000;
+
+MonoSignal_upsampling{j} = interp(MonoSignal{j},Factor);    
+    
+Carrier_Signal{j} =  ...
+                  cos(2*pi*Fcarrier{j}*n*Tupsampling);
+              
+Modulated_signal{j} = MonoSignal_upsampling{j} .* Carrier_Signal{j};
+    
+figure()
+%plotting Message Signal in time domain:
+subplot(3,1,1)
+plot(MonoSignal_Time{j},MonoSignal{j});
+xlabel('Time (Sec)');
+ylabel(sprintf('%s Mono Signal',StereoSignals{j}));
+title(sprintf('%s Mono Signal - Time domain',StereoSignals{j}));
+
+%plotting Carrier signal in time domain:
+subplot(3,1,2)
+plot(n, Carrier_Signal{j});
+xlabel('n (index)');
+ylabel(sprintf('%s Carrier Signal',StereoSignals{j}));
+title(sprintf('%s Carrier Signal - Time domain',StereoSignals{j}));
+
+%plotting Modulated signal in time domain:
+subplot(3,1,3)
+plot(n, Modulated_signal{j});
+xlabel('n (index)');
+ylabel(sprintf('%s modulated Signal',StereoSignals{j}));
+title(sprintf('%s modulated Signal - Time domain',StereoSignals{j}));
+
+end
+
+
