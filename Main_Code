@@ -1,28 +1,27 @@
 %% Mina Wael Tanagho Fahmy 91240804
-clear all;
 clc;
+clear all;
 close all;
 
-%% Signals Inputs all in a single cell:
+%% Signals Inputs (3) in a single cell:
 StereoSignals = {'Short-BBCArabic2.wav',...
-    'Short-FM9090.wav','Short-QuranPalestine.wav',...
-    'Short-RussianVoice.wav','Short-SkyNewsArabia.wav'};
+    'Short-FM9090.wav','Short-QuranPalestine.wav'};
 
 %% (1ST Phase) Generating Signals Spectrums by a loop:
 
 %cells for all variables.
-StereoSignal = cell(1,5);
-StereoSignal_padded = cell(1,5);
-Length = cell(1,5);
+StereoSignal = cell(1,3);
+StereoSignal_padded = cell(1,3);
+Length = cell(1,3);
 maxLength = 740544; %max length.
-Fsample = cell(1,5);
-MonoSignal = cell(1,5);
-MonoSignal_Time = cell(1,5);
-MonoSignal_Spectrum = cell(1,5);
-MonoSignal_Frequency = cell(1,5);
+Fsample = cell(1,3);
+MonoSignal = cell(1,3);
+MonoSignal_Time = cell(1,3);
+MonoSignal_Spectrum = cell(1,3);
+MonoSignal_Frequency = cell(1,3);
 
-%for loop for all 5 inputs.
-for i = 1:5
+%for loop for all 3 inputs.
+for i = 1:3
 %getting the data of audios.
 [StereoSignal{i},Fsample{i}] = audioread(StereoSignals{i});
 Length{i} = length(StereoSignal{i});
@@ -47,7 +46,7 @@ MonoSignal_Time{i}=(0:(maxLength-1))/Fsample{i};
 MonoSignal_Frequency{i}= ...
     ((-maxLength/2):(maxLength/2)-1)*(Fsample{i}/maxLength);
 
-figure()
+figure();
 %plotting in time domain:
 subplot(2,1,1)
 plot(MonoSignal_Time{i},MonoSignal{i});
@@ -65,23 +64,25 @@ end
 
 %% (2ND Phase) The AM Modulation:
 
-Fcarrier = cell(1,5);%Carrier frequency
-Carrier_Signal = cell(1,5);
-MonoSignal_upsampling = cell(1,5);
+Fcarrier = cell(1,3);%Carrier frequency
+Carrier_Signal = cell(1,3);
+MonoSignal_upsampling = cell(1,3);
 Fsampling = 44100; %from audioread('');
-Factor = 60; %upsampling
+Factor = 10; %upsampling
 Fupsampling = Factor * Fsampling;
 Tupsampling = 1/Fupsampling;
-Modulated_signal = cell(1,5);
+Modulated_signal = cell(1,3);
+MonoSignal_Time_upsample = cell(1,3);
 
 %generating carrier:
-for j = 1:5
+for j = 1:3
     
 %starting from 0 not 1,
 %by using the given equation,
 Fcarrier{j} = 100000 + (j-1)*30000;
 
 MonoSignal_upsampling{j} = interp(MonoSignal{j},Factor);   
+MonoSignal_Time_upsample{j} = (0:length(MonoSignal_upsampling{j})-1)/Fupsampling ;
 
 n = 0:(length(MonoSignal_upsampling{j})-1); %index
     
@@ -90,11 +91,11 @@ Carrier_Signal{j} =  ...
               
 Modulated_signal{j} = ...
           MonoSignal_upsampling{j}(1:length(n)) .* Carrier_Signal{j}';
-    
+
 figure()
-%plotting Message Signal in time domain:
+%plotting upscalled Message Signal in time domain:
 subplot(3,1,1)
-plot(MonoSignal_Time{j},MonoSignal{j});
+plot(MonoSignal_Time_upsample{j},MonoSignal_upsampling{j});
 xlabel('Time (Sec)');
 ylabel(sprintf('%s Mono Signal',StereoSignals{j}));
 title(sprintf('%s Mono Signal - Time domain',StereoSignals{j}));
@@ -117,35 +118,215 @@ xlim([0 200]);
 
 end
 
+%FDM Signals
+FDM_Signal = Modulated_signal{1}+...
+    Modulated_signal{2}+Modulated_signal{3}; 
+
+FDM_Signal_spectrum = fftshift(fft(FDM_Signal));
+
+FDM_Signal_length = length(FDM_Signal_spectrum);
+
+FDM_Signal_Frequency =...
+        ((-FDM_Signal_length/2):(FDM_Signal_length/2)-1)...
+     *(Fupsampling/FDM_Signal_length);
+ 
+%plotting FDM in Time Domain:
+grid on;
+figure();
+subplot(2,3,[1 2 3]);
+plot(FDM_Signal_Frequency, abs(FDM_Signal_spectrum));
+xlabel('Frequency (Hz)');
+ylabel('FDM Signal value');
+title('FDM Signal');
+
 %% (3RD Phase) The RF stage (designing the BPF):
 
 %BPFilter parameters
 A_stop1 = 80;	%in dB	
-F_stop1 = 85000;	
-F_pass1 = 90000;	
-F_pass2 = 110000;
-F_stop2 = 115000;
 A_stop2 = 80;     %in dB
 A_pass = 1;     %in dB
 
 BPFilter_ = fdesign.bandpass;
 
-BandPassSpecObj_1 = ...
+BandPassSpecObj = cell(1,3);
+BPFilter = cell(1,3);
+filtered_signal = cell(1,3);
+filtered_spectrum = cell(1,3);
+
+for p = 1:3
+
+%updating BPF parameters for other signals:
+F_pass1 = Fcarrier{p}-10000;
+F_stop1 = F_pass1-5000;	
+F_pass2 = Fcarrier{p}+10000;
+F_stop2 = F_pass2+5000;
+
+%BPF Set up
+
+BandPassSpecObj{p} = ...
    fdesign.bandpass('Fst1,Fp1,Fp2,Fst2,Ast1,Ap,Ast2', ...
 		F_stop1, F_pass1, F_pass2, F_stop2, A_stop1, A_pass, ...
 		A_stop2, Fupsampling);
     
-BPFilter = design(BandPassSpecObj_1, 'equiripple');
-    
-filtered_1st_signal = filter(BPFilter,Modulated_signal{1});
-filtered_1st_length = length(filtered_1st_signal);
-fitered_1st_Frequency= ...
-    ((-filtered_1st_length/2):(filtered_1st_length/2)-1)...
-     *(Fupsampling/filtered_1st_length);
-fitered_1st_spectrum = fftshift(fft(filtered_1st_signal));
+BPFilter{p} = design(BandPassSpecObj{p}, 'equiripple');
 
-figure();
-plot(fitered_1st_Frequency, abs(fitered_1st_spectrum));
+%Filtered signal
+
+filtered_signal{p} = filter(BPFilter{p},FDM_Signal);
+
+filtered_length = length(filtered_signal{p});
+
+filtered_Frequency= ...
+    ((-filtered_length/2):(filtered_length/2)-1)...
+     *(Fupsampling/filtered_length);
+ 
+filtered_spectrum{p} = fftshift(fft(filtered_signal{p}));
+filtered_length_Freq = length(filtered_spectrum{p}) ;
+
+%plotting the filtered FDM
+grid on;
+subplot(2,3,p+3);
+plot(filtered_Frequency, abs(filtered_spectrum{p}));
 xlabel('Frequency (Hz)');
-ylabel(sprintf('%s Filtered Signal',StereoSignals{1}));
-title(sprintf('%s Filtered Signal - frequency domain',StereoSignals{1}));
+ylabel(sprintf('%s Filtered Signal',StereoSignals{p}));
+title(sprintf('%s Filtered Signal - frequency domain',StereoSignals{p}));
+grid on;
+
+end
+
+%% (4th & 5TH Phase) The Mixer and the (IF) BP filter:
+
+F_localOscillator = cell(1,3);
+Mixed_signal = cell(1,3);
+MixerCos = cell(1,3);
+Mixed_signal_spectrum = cell(1,3);
+filtered_signal_IF = cell(1,3);
+filtered_spectrum_IF = cell(1,3);
+
+F_intermediatefreq = 15000;
+T_mixer = (0:filtered_length-1)*Tupsampling;
+
+%BPFilter parameters
+A_stop1 = 80;	%in dB	
+A_stop2 = 80;     %in dB
+A_pass = 1;     %in dB
+
+BPFilter_ = fdesign.bandpass;
+
+BandPassSpecObj = cell(1,3);
+BPFilter = cell(1,3);
+
+for q = 1:3
+    
+F_localOscillator{q} = Fcarrier{q} + F_intermediatefreq ;
+
+MixerCos{q} = cos(2*pi*F_localOscillator{q}*T_mixer);
+
+Mixed_signal{q} = 2 * filtered_signal{q}.*MixerCos{q}';
+
+%updating BPF parameters for other signals:
+F_pass1 = F_intermediatefreq-10000;
+F_stop1 = F_pass1-4950;	
+F_pass2 = F_intermediatefreq+10000;
+F_stop2 = F_pass2+5000;
+
+%BPF Set up
+
+BandPassSpecObj{q} = ...
+   fdesign.bandpass('Fst1,Fp1,Fp2,Fst2,Ast1,Ap,Ast2', ...
+		F_stop1, F_pass1, F_pass2, F_stop2, A_stop1, A_pass, ...
+		A_stop2, Fupsampling);
+
+    
+BPFilter{q} = design(BandPassSpecObj{q}, 'equiripple');
+
+%Filtered IF signal
+
+filtered_signal_IF{q} = filter(BPFilter{q},Mixed_signal{q});
+
+filtered_length = length(filtered_signal_IF{q});
+
+filtered_spectrum_IF{q} = fftshift(fft(filtered_signal_IF{q}));
+
+filtered_length_freq = length(filtered_spectrum_IF{q});
+
+filtered_Frequency= ...
+    ((-filtered_length_freq/2):(filtered_length_freq/2)-1)...
+     *(Fupsampling/filtered_length_freq);
+
+%plotting the filtered IF Signals
+figure();
+grid on;
+plot(filtered_Frequency, abs(filtered_spectrum_IF{q}));
+xlabel('Frequency (Hz)');
+ylabel(sprintf('%s Filtered IF Signal',StereoSignals{q}));
+title(sprintf('%s Filtered IF Signal - frequency domain',StereoSignals{q}));
+grid on;
+
+end
+
+%% (6TH Phase) The Baseband detection & LP Filter:
+
+%LPF Parameters
+F_pass = 10000;
+F_stop = 15000;
+A_pass = 1 ;
+A_stop = 80 ;
+
+LPFilter_ = fdesign.lowpass;
+
+lowPassSpecObj = cell(1,3);
+LPFilter = cell(1,3);
+
+baseband_signal = cell(1,3);
+
+baseband_signal_LB = cell(1,3);
+baseband_signal_freq_LB = cell(1,3);
+
+baseband_carrier = 2*cos(2*pi*F_intermediatefreq*T_mixer);
+
+for r = 1:3
+baseband_signal{r} = filtered_signal_IF{r}.*baseband_carrier' ;
+
+%LPF Set up
+
+lowPassSpecObj{r} = ...
+   fdesign.lowpass('Fp,Fst,Ap,Ast', ...
+		F_pass, F_stop , A_pass, A_stop, Fupsampling);
+
+LPFilter{r} = design(lowPassSpecObj{r}, 'equiripple');
+
+%baseband signals
+
+baseband_signal_LB{r} = filter(LPFilter{r},baseband_signal{r});
+
+baseband_signal_Length_LB = length(baseband_signal_LB{r});
+
+baseband_signal_time = (0:(baseband_signal_Length_LB-1))*Tupsampling;
+
+baseband_signal_freq_LB{r} = fftshift(fft(baseband_signal_LB{r}));
+
+baseband_signal_freq_length = length(baseband_signal_freq_LB{r});
+
+baseband_signal_freq = ...
+    ((-baseband_signal_freq_length/2):(baseband_signal_freq_length/2)-1)...
+     *(Fupsampling/baseband_signal_freq_length);
+
+%plotting the baseband Signals:
+figure();
+
+subplot(2,1,1);
+grid on;
+plot(baseband_signal_time, baseband_signal_LB{r});
+xlabel('Time (Sec)');
+ylabel(sprintf('%s Baseband Signal',StereoSignals{r}));
+title(sprintf('%s Baseband Signal - time domain',StereoSignals{r}));
+
+subplot(2,1,2);
+grid on;
+plot(baseband_signal_freq, abs(baseband_signal_freq_LB{r}));
+xlabel('Frequency (Hz)');
+ylabel(sprintf('%s Baseband Signal',StereoSignals{r}));
+title(sprintf('%s Baseband Signal - frequency domain',StereoSignals{r}));
+
+end
