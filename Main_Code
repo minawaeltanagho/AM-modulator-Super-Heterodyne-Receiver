@@ -268,8 +268,8 @@ end
 %% (6TH Phase) The Baseband detection & LP Filter:
 
 %LPF Parameters
-F_pass = 10000;
-F_stop = 15000;
+F_pass = 20000;
+F_stop = 25000;
 A_pass = 1 ;
 A_stop = 80 ;
 
@@ -282,6 +282,8 @@ baseband_signal = cell(1,3);
 
 baseband_signal_LB = cell(1,3);
 baseband_signal_freq_LB = cell(1,3);
+
+Recovered_audio = cell(1,3);
 
 baseband_carrier = 2*cos(2*pi*F_intermediatefreq*T_mixer);
 
@@ -329,4 +331,11 @@ xlabel('Frequency (Hz)');
 ylabel(sprintf('%s Baseband Signal',StereoSignals{r}));
 title(sprintf('%s Baseband Signal - frequency domain',StereoSignals{r}));
 
+Recovered_audio{r} = downsample(baseband_signal_LB{r}, Factor);
+end
+
+for a = 1:3
+sound(StereoSignal{a},Fsampling);
+pause(18);
+sound(Recovered_audio{a},Fsampling);
 end
