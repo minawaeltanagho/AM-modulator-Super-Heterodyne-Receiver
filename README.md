@@ -5,3 +5,4 @@ In this project, MATLAB is used to model an entire communication system. Frequen
 
 To restore the original audio, each signal is demodulated at the receiver using a (super-heterodyne receiver). Selected by an implemented RF filter (Phase 3), then mixed with an oscillator and filtered again by an implemented IF filter (Phase 4 and 5), then returned to the baseband and filtered for the last time (Phase 6). Finally, down converted then tested and compared the original one. Now, let’s get into the code part by part.
 
+for the report kindly check this link: https://drive.google.com/file/d/1VNn2YTt5uVsB9DvV6_vxmuvSLPg1DMpL/view?usp=sharing
