@@ -1,2 +1,7 @@
 # AM modulator & Super-Heterodyne Receiver
 Using MatLab to apply some basics of Communication systems on 5 .wav files, generating Carrier signals and Modulated signals, also demodulating using BPF and LPF and F_if.
+
+	In this project, MATLAB is used to model an entire communication system. Frequency Division Multiplexing (FDM) is used to merge a number of audio signals. So, I started by dividing the code into phases to be clearer and well-organized. As shown in Fig.1, Started by the transmitting operation and going through the receiving operation, Inputting the (.wav files) into the software, up converted and padded with zeros to have equal lengths, then applying the AM modulation with specific required carrier frequencies (Phase 1 and 2).
+
+	To restore the original audio, each signal is demodulated at the receiver using a (super-heterodyne receiver). Selected by an implemented RF filter (Phase 3), then mixed with an oscillator and filtered again by an implemented IF filter (Phase 4 and 5), then returned to the baseband and filtered for the last time (Phase 6). Finally, down converted then tested and compared the original one. Now, let’s get into the code part by part.
+
